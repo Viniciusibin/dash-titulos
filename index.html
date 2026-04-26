@@ -696,6 +696,8 @@
             <th data-col="codigo">Código</th>
             <th data-col="nome" style="min-width:180px">Emissor</th>
             <th data-col="indexador">Indexador</th>
+            <th data-col="taxa_emissao">Taxa Emissão</th>
+            <th data-col="estoque_mm">Estoque (R$mm)</th>
             <th data-col="setor">Setor</th>
             <th data-col="vencimento">Vencimento</th>
             <th data-col="taxa_v0" id="th-taxa-v0">Taxa —</th>
@@ -930,6 +932,7 @@ function applyFilters() {
   const puF = document.getElementById("filter-pu").value;
 
   filtered = allPapers.filter(p => {
+    if (!p.taxa_emissao || p.taxa_emissao <= 0) return false;
     if (search && !p.codigo.toLowerCase().includes(search) && !p.nome.toLowerCase().includes(search))
       return false;
     if (idxF && p.indexador !== idxF) return false;
@@ -1026,6 +1029,8 @@ function rowHtml(p) {
     <td><span class="codigo-badge">${p.codigo}</span></td>
     <td class="nome-cell" title="${escHtml(p.nome)}">${starHtml} ${escHtml(p.nome)}</td>
     <td><span class="idx-badge idx-${p.indexador}">${IDX_SHORT[p.indexador]||p.indexador}</span></td>
+    <td class="mono" style="color:var(--btg-muted)">${p.taxa_emissao != null ? p.taxa_emissao.toFixed(2)+"%" : "—"}</td>
+    <td class="mono">${p.estoque_mm != null ? "R$"+p.estoque_mm.toLocaleString("pt-BR",{maximumFractionDigits:0}) : "—"}</td>
     <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${escHtml(p.setor)}">${escHtml(p.setor)}</td>
     <td class="mono" style="color:var(--btg-muted);font-size:12px">${p.vencimento || "—"}</td>
     <td class="mono">${p.taxa_v0 != null ? p.taxa_v0.toFixed(4)+"%" : "—"}</td>

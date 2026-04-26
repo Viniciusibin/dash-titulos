@@ -111,6 +111,44 @@ def parse_anbima_file(filepath):
     return records, ref_date
 
 
+def parse_btg_big_tables():
+    """Parse Taxa Emissão e Estoque das abas Big table do BTG Weekly.
+    Returns dict: {codigo: {taxa_emissao, estoque_mm}}
+    """
+    result = {}
+    sheets = ["Big table DI+", "Big table Deb incent", "Big table IPCA+"]
+
+    try:
+        wb = openpyxl.load_workbook(BTG_FILE, read_only=True, data_only=True)
+    except Exception:
+        return result
+
+    for sheet_name in sheets:
+        if sheet_name not in wb.sheetnames:
+            continue
+        ws = wb[sheet_name]
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i < 8:  # header at row 8 (index 7), data from row 9 (index 8)
+                continue
+            if not row or row[1] is None:
+                continue
+            codigo = str(row[1]).strip()
+            if len(codigo) < 4 or codigo in ("Código", "C\u00f3digo"):
+                continue
+            estoque = safe_float(row[5]) if len(row) > 5 else None
+            taxa_em = safe_float(row[7]) if len(row) > 7 else None
+            # Convert decimal to % (0.018 → 1.80%)
+            if taxa_em is not None:
+                taxa_em = round(taxa_em * 100, 4)
+            result[codigo] = {
+                "taxa_emissao": taxa_em,
+                "estoque_mm": round(estoque, 2) if estoque is not None else None,
+            }
+
+    wb.close()
+    return result
+
+
 def parse_btg_sectors():
     """Parse sector info from BTG Weekly BigChart sheets.
     Returns dict: {codigo: setor}
@@ -226,6 +264,7 @@ def build_data():
     base_records, base_date = parse_anbima_file(ANBIMA_BASE_FILE)
     curr_records, curr_date = parse_anbima_file(ANBIMA_CURR_FILE)
     sector_map = parse_btg_sectors()
+    btg_data = parse_btg_big_tables()
 
     papers = []
     for codigo, curr in curr_records.items():
@@ -251,6 +290,8 @@ def build_data():
         paper = {
             **curr,
             "setor": setor,
+            "taxa_emissao": btg_data.get(codigo, {}).get("taxa_emissao"),
+            "estoque_mm": btg_data.get(codigo, {}).get("estoque_mm"),
             # Flat fields for both dates (table columns)
             "taxa_v0": base.get("taxa_indicativa"),
             "taxa_v1": curr.get("taxa_indicativa"),
