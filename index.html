@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BTG Pactual — Debêntures Distressed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --btg-dark: #002060;
+    --btg-blue: #0057B7;
+    --btg-light: #1A7FE0;
+    --btg-accent: #00B4E0;
+    --btg-white: #FFFFFF;
+    --btg-bg: #F0F4FA;
+    --btg-card: #FFFFFF;
+    --btg-border: #D0DDF0;
+    --btg-text: #1A2340;
+    --btg-muted: #6B7FA8;
+    --btg-row-alt: #F7FAFF;
+    --red: #D93025;
+    --orange: #E67C00;
+    --yellow: #F5A623;
+    --green: #1A8744;
+    --green-light: #E6F4EA;
+    --red-light: #FDECEA;
+    --orange-light: #FFF3E0;
+    --yellow-light: #FFFDE7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--btg-bg);
+    color: var(--btg-text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--btg-dark);
+    color: white;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo-badge {
+    background: var(--btg-blue);
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    letter-spacing: .5px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,.9);
+    letter-spacing: .3px;
+  }
+  .header-meta {
+    font-size: 12px;
+    color: rgba(255,255,255,.55);
+    font-weight: 400;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    max-width: 100%;
+    margin: 0;
+    padding: 16px 24px 40px;
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .kpi-card {
+    background: var(--btg-card);
+    border-radius: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--btg-border);
+    box-shadow: 0 1px 4px rgba(0,32,96,.06);
+    transition: box-shadow .15s;
+  }
+  .kpi-card:hover { box-shadow: 0 4px 14px rgba(0,32,96,.12); }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--btg-muted);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--btg-dark);
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--btg-muted);
+    margin-top: 4px;
+  }
+  .kpi-card.red .kpi-value { color: var(--red); }
+  .kpi-card.orange .kpi-value { color: var(--orange); }
+  .kpi-card.yellow .kpi-value { color: var(--yellow); }
+  .kpi-card.green .kpi-value { color: var(--green); }
+  .kpi-card.blue .kpi-value { color: var(--btg-blue); }
+
+  /* ── SECTION ── */
+  .section {
+    background: var(--btg-card);
+    border-radius: 10px;
+    border: 1px solid var(--btg-border);
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,32,96,.06);
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--btg-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(90deg, #F7FAFF 0%, white 100%);
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--btg-dark);
+    letter-spacing: .2px;
+  }
+  .section-count {
+    background: var(--btg-blue);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ── FILTERS ── */
+  .filters {
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    border-bottom: 1px solid var(--btg-border);
+    background: var(--btg-row-alt);
+  }
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--btg-muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    white-space: nowrap;
+  }
+  select, input[type="text"] {
+    border: 1px solid var(--btg-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    color: var(--btg-text);
+    background: white;
+    outline: none;
+    transition: border-color .15s;
+  }
+  select:focus, input[type="text"]:focus {
+    border-color: var(--btg-blue);
+    box-shadow: 0 0 0 2px rgba(0,87,183,.15);
+  }
+  input[type="text"] { min-width: 200px; }
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--btg-border);
+    background: white;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--btg-muted);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { border-color: var(--btg-blue); color: var(--btg-blue); }
+  .tab-btn.active {
+    background: var(--btg-blue);
+    border-color: var(--btg-blue);
+    color: white;
+  }
+  .btn-reset {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--btg-border);
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--btg-muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-reset:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--btg-dark);
+    color: rgba(255,255,255,.85);
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background .1s;
+  }
+  thead th:hover { background: var(--btg-blue); }
+  thead th.sort-asc::after { content: " ▲"; opacity: .7; }
+  thead th.sort-desc::after { content: " ▼"; opacity: .7; }
+  tbody tr {
+    border-bottom: 1px solid var(--btg-border);
+    cursor: pointer;
+    transition: background .1s;
+  }
+  tbody tr:nth-child(even) { background: var(--btg-row-alt); }
+  tbody tr:hover { background: #E8F0FD !important; }
+  tbody tr.selected-row { background: #D0E3FF !important; }
+  td {
+    padding: 7px 10px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  td.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  td.nome-cell {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .codigo-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--btg-dark);
+    color: white;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .5px;
+  }
+  .idx-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+    letter-spacing: .3px;
+  }
+  .idx-DI_SPREAD { background: #E3EDFF; color: #0057B7; }
+  .idx-IPCA_SPREAD { background: #E6F4EA; color: #1A8744; }
+  .idx-PREFIXADO { background: #FFF3E0; color: #E67C00; }
+  .idx-DI_PERCENTUAL { background: #F3E8FF; color: #7B4FC7; }
+  .idx-IGP-M { background: #FCE8E6; color: #C62828; }
+
+  .delta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .delta-up { background: #FDECEA; color: var(--red); }
+  .delta-down { background: var(--green-light); color: var(--green); }
+  .delta-neutral { background: #F5F5F5; color: #666; }
+
+  .pu-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 100px; }
+  .pu-bar {
+    height: 6px;
+    border-radius: 3px;
+    flex: 1;
+    background: #E0E8F5;
+    overflow: hidden;
+  }
+  .pu-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--btg-blue);
+    transition: width .3s;
+  }
+  .pu-bar-fill.stress { background: var(--red); }
+  .pu-bar-fill.warn { background: var(--orange); }
+  .pu-bar-fill.ok { background: var(--green); }
+  .pu-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; min-width: 45px; }
+
+  .stress-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+  .s0 { background: var(--green); }
+  .s1 { background: var(--yellow); }
+  .s2 { background: var(--orange); }
+  .s3 { background: var(--red); }
+
+  .star-badge { color: #F5A623; font-size: 13px; }
+  .dstar-badge { color: var(--red); font-size: 13px; }
+
+  /* ── PAGINATION ── */
+  .pagination {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid var(--btg-border);
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .page-info { font-size: 12px; color: var(--btg-muted); }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    padding: 5px 11px;
+    border: 1px solid var(--btg-border);
+    border-radius: 5px;
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--btg-text);
+    transition: all .15s;
+  }
+  .page-btn:hover { border-color: var(--btg-blue); color: var(--btg-blue); }
+  .page-btn.active { background: var(--btg-blue); color: white; border-color: var(--btg-blue); }
+  .page-btn:disabled { opacity: .4; cursor: default; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,20,60,.45);
+    z-index: 200;
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,20,60,.3);
+    width: min(860px, 95vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-header {
+    background: var(--btg-dark);
+    color: white;
+    padding: 18px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-radius: 12px 12px 0 0;
+  }
+  .modal-codigo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .modal-nome { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 3px; }
+  .modal-close {
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: white;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .modal-close:hover { background: rgba(255,255,255,.3); }
+  .modal-body { padding: 24px; }
+
+  /* Metric cards in modal */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .metric-card {
+    background: var(--btg-bg);
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid var(--btg-border);
+  }
+  .metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--btg-muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 5px;
+  }
+  .metric-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--btg-dark);
+  }
+  .metric-val.red { color: var(--red); }
+  .metric-val.green { color: var(--green); }
+  .metric-val.orange { color: var(--orange); }
+  .metric-delta {
+    font-size: 11px;
+    margin-top: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--btg-muted);
+  }
+
+  .chart-container {
+    position: relative;
+    height: 200px;
+    margin-bottom: 20px;
+  }
+  .chart-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--btg-muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 600px) {
+    .charts-row { grid-template-columns: 1fr; }
+  }
+
+  .modal-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+    font-size: 13px;
+  }
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .detail-item label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--btg-muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .detail-item span {
+    font-weight: 500;
+    color: var(--btg-text);
+  }
+
+  .stress-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+  .stress-0 { background: var(--green-light); color: var(--green); }
+  .stress-1 { background: var(--yellow-light); color: #8B6000; }
+  .stress-2 { background: var(--orange-light); color: #8B4000; }
+  .stress-3 { background: var(--red-light); color: var(--red); }
+
+  /* ── OVERVIEW CHARTS ── */
+
+  /* ── LOADING ── */
+  #loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+    color: var(--btg-muted);
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--btg-border);
+    border-top-color: var(--btg-blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #app { display: none; }
+
+  /* PD bar in modal */
+  .pd-bar {
+    background: #E0E8F5;
+    border-radius: 4px;
+    height: 8px;
+    width: 100%;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .pd-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--btg-blue);
+    transition: width .5s ease;
+  }
+  .pd-bar-fill.pd-high { background: var(--red); }
+  .pd-bar-fill.pd-mid { background: var(--orange); }
+
+  .tooltip-text {
+    font-size: 11px;
+    color: var(--btg-muted);
+    margin-top: 2px;
+  }
+
+  .no-data-row td {
+    text-align: center;
+    padding: 32px;
+    color: var(--btg-muted);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <div class="logo-badge">BTG</div>
+    <div>
+      <div class="header-title">Debêntures Distressed Monitor</div>
+      <div class="header-meta" id="header-dates">Carregando dados...</div>
+    </div>
+  </div>
+  <div id="header-stress" style="display:flex;gap:10px;font-size:12px;"></div>
+</header>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div>Processando arquivos ANBIMA e BTG...</div>
+</div>
+
+<div id="app">
+<main>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- Main table section -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Papéis</span>
+      <span class="section-count" id="tbl-count">0</span>
+    </div>
+
+    <div class="filters">
+      <!-- Quick tabs -->
+      <div class="filter-group">
+        <div class="tab-bar" id="tab-bar">
+          <button class="tab-btn active" data-tab="all">Todos</button>
+          <button class="tab-btn" data-tab="top">Top Aberturas</button>
+          <button class="tab-btn" data-tab="distressed">Distressed</button>
+          <button class="tab-btn" data-tab="events">Eventos ⭐</button>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="filter-group">
+        <span class="filter-label">Busca</span>
+        <input type="text" id="search" placeholder="Código ou nome..." />
+      </div>
+
+      <!-- Indexador -->
+      <div class="filter-group">
+        <span class="filter-label">Indexador</span>
+        <select id="filter-indexador">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <!-- Setor -->
+      <div class="filter-group">
+        <span class="filter-label">Setor</span>
+        <select id="filter-setor">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <!-- Delta range -->
+      <div class="filter-group">
+        <span class="filter-label">Delta spread</span>
+        <select id="filter-delta">
+          <option value="">Qualquer</option>
+          <option value="200">≥ 200 bps</option>
+          <option value="100">≥ 100 bps</option>
+          <option value="50">≥ 50 bps</option>
+          <option value="-50">≤ −50 bps</option>
+        </select>
+      </div>
+
+      <!-- PU Par -->
+      <div class="filter-group">
+        <span class="filter-label">% PU Par</span>
+        <select id="filter-pu">
+          <option value="">Qualquer</option>
+          <option value="distressed">&lt; 70% (Distressed)</option>
+          <option value="stress">70–85% (Stress)</option>
+          <option value="normal">85–105% (Normal)</option>
+        </select>
+      </div>
+
+      <button class="btn-reset" id="btn-reset">Limpar filtros</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th data-col="codigo">Código</th>
+            <th data-col="nome" style="min-width:180px">Emissor</th>
+            <th data-col="indexador">Indexador</th>
+            <th data-col="setor">Setor</th>
+            <th data-col="vencimento">Vencimento</th>
+            <th data-col="taxa_v0" id="th-taxa-v0">Taxa —</th>
+            <th data-col="taxa_v1" id="th-taxa-v1">Taxa —</th>
+            <th data-col="delta_taxa_bps">Δ Spread (bps)</th>
+            <th data-col="pu_par_v0" id="th-pu-v0">%PU Par —</th>
+            <th data-col="pu_par_v1" id="th-pu-v1">%PU Par —</th>
+            <th data-col="delta_pu_par">Δ PU Par</th>
+            <th data-col="bid_ask_bps">Bid/Ask (bps)</th>
+            <th data-col="desvio_v1">Desvio Dealers</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-codigo" id="modal-codigo"></div>
+        <div class="modal-nome" id="modal-nome"></div>
+      </div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="metrics-grid" id="modal-metrics"></div>
+
+      <div class="charts-row">
+        <div>
+          <div class="chart-title">Taxa Indicativa (%)</div>
+          <div class="chart-container"><canvas id="modal-chart-taxa"></canvas></div>
+        </div>
+        <div>
+          <div class="chart-title">% PU Par</div>
+          <div class="chart-container"><canvas id="modal-chart-pu"></canvas></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="chart-title">Bid/Ask Spread (bps) &amp; Desvio Padrão Dealers</div>
+        <div class="chart-container"><canvas id="modal-chart-bidask"></canvas></div>
+      </div>
+
+      <div class="modal-detail-grid" id="modal-details"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA + STATE
+// ═══════════════════════════════════════════
+let allPapers = [];
+let meta = {};
+let filtered = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let sortCol = "delta_taxa_bps";
+let sortDir = -1; // -1 desc, 1 asc
+let activeTab = "all";
+let modalCharts = {};
+
+const STRESS_LABELS = ["OK", "Atenção", "Stress", "Distressed"];
+const STRESS_CLASSES = ["stress-0", "stress-1", "stress-2", "stress-3"];
+const IDX_SHORT = {
+  DI_SPREAD: "DI+",
+  IPCA_SPREAD: "IPCA+",
+  PREFIXADO: "PRE",
+  DI_PERCENTUAL: "DI%",
+  "IGP-M": "IGP-M"
+};
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+async function init() {
+  try {
+    const resp = await fetch("/api/data");
+    const data = await resp.json();
+    allPapers = data.papers;
+    meta = data.meta;
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    buildUI();
+  } catch(e) {
+    document.getElementById("loading").innerHTML =
+      '<div style="color:red;font-size:15px;">Erro ao carregar dados. Certifique-se que o Flask está rodando.<br><small>' + e + '</small></div>';
+  }
+}
+
+function buildUI() {
+  // Header meta
+  document.getElementById("header-dates").textContent =
+    `Base: ${fmt_date(meta.base_date)} → Atual: ${fmt_date(meta.curr_date)}`;
+
+  // Header stress summary
+  document.getElementById("header-stress").innerHTML = `
+    <span style="color:rgba(255,255,255,.6)">${meta.total} papéis</span>
+    <span style="color:#FF6B6B;font-weight:600">● ${meta.distressed} dist.</span>
+    <span style="color:#FFB347;font-weight:600">● ${meta.stress} stress</span>
+    <span style="color:#FFE066;font-weight:600">● ${meta.atencao} atenção</span>
+  `;
+
+  buildKPIs();
+  buildFilters();
+  // Set dynamic date labels on column headers
+  const baseLabel = fmt_date_short(meta.base_date);
+  const currLabel = fmt_date_short(meta.curr_date);
+  document.getElementById("th-taxa-v0").textContent  = `Taxa ${baseLabel}`;
+  document.getElementById("th-taxa-v1").textContent  = `Taxa ${currLabel}`;
+  document.getElementById("th-pu-v0").textContent    = `%PU Par ${baseLabel}`;
+  document.getElementById("th-pu-v1").textContent    = `%PU Par ${currLabel}`;
+
+  applyFilters();
+
+  // Event listeners
+  document.getElementById("search").addEventListener("input", () => { currentPage=1; applyFilters(); });
+  document.getElementById("filter-indexador").addEventListener("change", () => { currentPage=1; applyFilters(); });
+  document.getElementById("filter-setor").addEventListener("change", () => { currentPage=1; applyFilters(); });
+  document.getElementById("filter-delta").addEventListener("change", () => { currentPage=1; applyFilters(); });
+  document.getElementById("filter-pu").addEventListener("change", () => { currentPage=1; applyFilters(); });
+  document.getElementById("btn-reset").addEventListener("click", resetFilters);
+
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeTab = btn.dataset.tab;
+      currentPage = 1;
+      applyFilters();
+    });
+  });
+
+  document.querySelectorAll("thead th[data-col]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (sortCol === col) sortDir *= -1;
+      else { sortCol = col; sortDir = -1; }
+      document.querySelectorAll("thead th").forEach(t => t.classList.remove("sort-asc","sort-desc"));
+      th.classList.add(sortDir === 1 ? "sort-asc" : "sort-desc");
+      renderTable();
+    });
+  });
+
+  // Init sort indicator
+  document.querySelector(`th[data-col="${sortCol}"]`).classList.add("sort-desc");
+
+  // Modal close
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("modal-overlay").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+}
+
+// ═══════════════════════════════════════════
+// KPI CARDS
+// ═══════════════════════════════════════════
+function buildKPIs() {
+  const topDelta = allPapers.filter(p => p.delta_taxa_bps != null).sort((a,b) => b.delta_taxa_bps - a.delta_taxa_bps);
+  const avgDelta = topDelta.length ? median(topDelta.map(p => p.delta_taxa_bps)) : 0;
+  const distressCount = allPapers.filter(p => p.pu_par_v1 != null && p.pu_par_v1 < 70).length;
+  const noQuote = allPapers.filter(p => p.sem_cotacao).length;
+  const maxDelta = topDelta.length ? topDelta[0].delta_taxa_bps : 0;
+
+  const kpis = [
+    { label: "Total Papéis", value: meta.total, sub: "monitorados", cls: "blue" },
+    { label: "Distressed", value: meta.distressed, sub: "stress level 3", cls: "red" },
+    { label: "Em Stress", value: meta.stress, sub: "stress level 2", cls: "orange" },
+    { label: "Em Atenção", value: meta.atencao, sub: "stress level 1", cls: "yellow" },
+    { label: "PU Par < 70%", value: distressCount, sub: "recovery pricing", cls: "red" },
+    { label: "Sem Cotação", value: noQuote, sub: "dealers pararam", cls: "orange" },
+    { label: "Δ Mediana", value: (avgDelta >= 0 ? "+" : "") + Math.round(avgDelta), sub: "bps todos papéis", cls: avgDelta > 20 ? "orange" : "green" },
+  ];
+
+  document.getElementById("kpi-grid").innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join("");
+}
+
+// ═══════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════
+function buildFilters() {
+  const idxSel = document.getElementById("filter-indexador");
+  meta.indexadores.forEach(idx => {
+    const opt = document.createElement("option");
+    opt.value = idx;
+    opt.textContent = IDX_SHORT[idx] || idx;
+    idxSel.appendChild(opt);
+  });
+
+  const setorSel = document.getElementById("filter-setor");
+  meta.setores.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s.length > 30 ? s.substring(0,28)+"…" : s;
+    setorSel.appendChild(opt);
+  });
+}
+
+function resetFilters() {
+  document.getElementById("search").value = "";
+  document.getElementById("filter-indexador").value = "";
+  document.getElementById("filter-setor").value = "";
+  document.getElementById("filter-delta").value = "";
+  document.getElementById("filter-pu").value = "";
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector('[data-tab="all"]').classList.add("active");
+  activeTab = "all";
+  currentPage = 1;
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById("search").value.toLowerCase();
+  const idxF = document.getElementById("filter-indexador").value;
+  const setorF = document.getElementById("filter-setor").value;
+  const deltaF = document.getElementById("filter-delta").value;
+  const puF = document.getElementById("filter-pu").value;
+
+  filtered = allPapers.filter(p => {
+    if (search && !p.codigo.toLowerCase().includes(search) && !p.nome.toLowerCase().includes(search))
+      return false;
+    if (idxF && p.indexador !== idxF) return false;
+    if (setorF && p.setor !== setorF) return false;
+    if (deltaF) {
+      const d = parseInt(deltaF);
+      if (d >= 0 && (p.delta_taxa_bps == null || p.delta_taxa_bps < d)) return false;
+      if (d < 0 && (p.delta_taxa_bps == null || p.delta_taxa_bps > d)) return false;
+    }
+    if (puF === "distressed" && (p.pu_par_v1 == null || p.pu_par_v1 >= 70)) return false;
+    if (puF === "stress" && (p.pu_par_v1 == null || p.pu_par_v1 < 70 || p.pu_par_v1 >= 85)) return false;
+    if (puF === "normal" && (p.pu_par_v1 == null || p.pu_par_v1 < 85 || p.pu_par_v1 > 105)) return false;
+
+    // Tabs
+    if (activeTab === "top") {
+      if (p.delta_taxa_bps == null || p.delta_taxa_bps < 50) return false;
+    }
+    if (activeTab === "distressed") {
+      if (p.stress_level < 2) return false;
+    }
+    if (activeTab === "events") {
+      if (!p.has_star && !p.has_double_star) return false;
+    }
+
+    return true;
+  });
+
+  document.getElementById("tbl-count").textContent = filtered.length;
+  renderTable();
+}
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+function renderTable() {
+  // Sort
+  const col = sortCol;
+  filtered.sort((a, b) => {
+    let av = a[col], bv = b[col];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "string") return av.localeCompare(bv) * sortDir;
+    return (av - bv) * sortDir;
+  });
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filtered.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById("table-body");
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="12">Nenhum papel encontrado com os filtros selecionados.</td></tr>';
+    renderPagination(0, 0);
+    return;
+  }
+
+  tbody.innerHTML = page.map(p => rowHtml(p)).join("");
+
+  // Click to open modal
+  tbody.querySelectorAll("tr[data-codigo]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const codigo = tr.dataset.codigo;
+      tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected-row"));
+      tr.classList.add("selected-row");
+      openModal(codigo);
+    });
+  });
+
+  renderPagination(total, totalPages);
+}
+
+function rowHtml(p) {
+  const deltaClass = p.delta_taxa_bps > 0 ? "delta-up" : p.delta_taxa_bps < 0 ? "delta-down" : "delta-neutral";
+  const deltaSign = p.delta_taxa_bps > 0 ? "+" : "";
+  const deltaLabel = p.delta_taxa_bps != null ? `${deltaSign}${p.delta_taxa_bps}` : "—";
+
+  const pu1Val = p.pu_par_v1 != null ? p.pu_par_v1.toFixed(2) : "—";
+  let puCls = "ok";
+  if (p.pu_par_v1 != null && p.pu_par_v1 < 70) puCls = "stress";
+  else if (p.pu_par_v1 != null && p.pu_par_v1 < 85) puCls = "warn";
+  const puFill = p.pu_par_v1 != null ? Math.min(100, p.pu_par_v1) : 0;
+
+  const dpuSign = p.delta_pu_par > 0 ? "+" : "";
+  const dpuColor = p.delta_pu_par < 0 ? "var(--red)" : p.delta_pu_par > 0 ? "var(--green)" : "inherit";
+
+  const starHtml = p.has_double_star ? '<span class="dstar-badge" title="Evento grave">★★</span>'
+    : p.has_star ? '<span class="star-badge" title="Evento especial">★</span>' : '';
+
+  return `<tr data-codigo="${p.codigo}">
+    <td><span class="codigo-badge">${p.codigo}</span></td>
+    <td class="nome-cell" title="${escHtml(p.nome)}">${starHtml} ${escHtml(p.nome)}</td>
+    <td><span class="idx-badge idx-${p.indexador}">${IDX_SHORT[p.indexador]||p.indexador}</span></td>
+    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${escHtml(p.setor)}">${escHtml(p.setor)}</td>
+    <td class="mono" style="color:var(--btg-muted);font-size:12px">${p.vencimento || "—"}</td>
+    <td class="mono">${p.taxa_v0 != null ? p.taxa_v0.toFixed(4)+"%" : "—"}</td>
+    <td class="mono" style="font-weight:600">${p.taxa_v1 != null ? p.taxa_v1.toFixed(4)+"%" : "—"}</td>
+    <td><span class="delta-pill ${deltaClass}">${deltaLabel} bps</span></td>
+    <td class="mono" style="color:var(--btg-muted)">${p.pu_par_v0 != null ? p.pu_par_v0.toFixed(2)+"%" : "—"}</td>
+    <td>
+      <div class="pu-bar-wrap">
+        <div class="pu-bar"><div class="pu-bar-fill ${puCls}" style="width:${puFill}%"></div></div>
+        <span class="pu-val">${pu1Val}%</span>
+      </div>
+    </td>
+    <td class="mono" style="color:${dpuColor}">${p.delta_pu_par != null ? dpuSign + p.delta_pu_par.toFixed(2) : "—"}</td>
+    <td class="mono">${p.bid_ask_bps != null ? p.bid_ask_bps.toFixed(0) : "—"}</td>
+    <td class="mono">${p.desvio_v1 != null ? p.desvio_v1.toFixed(3) : "—"}</td>
+  </tr>`;
+}
+
+// ═══════════════════════════════════════════
+// PAGINATION
+// ═══════════════════════════════════════════
+function renderPagination(total, totalPages) {
+  const pag = document.getElementById("pagination");
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, total);
+
+  let btnHtml = `<button class="page-btn" ${currentPage===1?"disabled":""} onclick="goPage(${currentPage-1})">‹ Anterior</button>`;
+
+  // Show up to 7 page buttons
+  const range = pageRange(currentPage, totalPages, 7);
+  range.forEach(p => {
+    if (p === "…") btnHtml += `<span style="padding:5px 4px;color:var(--btg-muted)">…</span>`;
+    else btnHtml += `<button class="page-btn ${p===currentPage?"active":""}" onclick="goPage(${p})">${p}</button>`;
+  });
+  btnHtml += `<button class="page-btn" ${currentPage===totalPages?"disabled":""} onclick="goPage(${currentPage+1})">Próxima ›</button>`;
+
+  pag.innerHTML = `
+    <span class="page-info">${total === 0 ? "0 resultados" : `${start}–${end} de ${total}`}</span>
+    <div class="page-btns">${btnHtml}</div>
+  `;
+}
+
+function goPage(p) { currentPage = p; renderTable(); }
+
+function pageRange(cur, total, maxBtns) {
+  if (total <= maxBtns) return Array.from({length:total},(_,i)=>i+1);
+  const half = Math.floor(maxBtns/2);
+  let start = Math.max(1, cur-half);
+  let end = Math.min(total, start+maxBtns-1);
+  if (end-start < maxBtns-1) start = Math.max(1, end-maxBtns+1);
+  const pages = [];
+  if (start > 1) { pages.push(1); if (start > 2) pages.push("…"); }
+  for (let i=start;i<=end;i++) pages.push(i);
+  if (end < total) { if (end < total-1) pages.push("…"); pages.push(total); }
+  return pages;
+}
+
+// ═══════════════════════════════════════════
+// OVERVIEW CHARTS
+// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function openModal(codigo) {
+  const p = allPapers.find(x => x.codigo === codigo);
+  if (!p) return;
+
+  // Destroy previous charts
+  Object.values(modalCharts).forEach(c => c.destroy());
+  modalCharts = {};
+
+  document.getElementById("modal-codigo").textContent = p.codigo;
+  document.getElementById("modal-nome").textContent = p.nome + (p.vencimento ? ` · Venc. ${p.vencimento}` : "");
+
+  // Metrics
+  const pdPct = p.pd_implicita;
+  const pdCls = pdPct > 30 ? "red" : pdPct > 15 ? "orange" : "green";
+  const delt = p.delta_taxa_bps;
+  const deltCls = delt > 0 ? "red" : delt < 0 ? "green" : "";
+  const deltSign = delt > 0 ? "+" : "";
+
+  document.getElementById("modal-metrics").innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Taxa Indicativa</div>
+      <div class="metric-val">${p.taxa_indicativa != null ? p.taxa_indicativa.toFixed(2)+"%" : "—"}</div>
+      <div class="metric-delta">${p.indice_correcao || "—"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Δ Spread (vs base)</div>
+      <div class="metric-val ${deltCls}">${delt != null ? deltSign+delt+" bps" : "—"}</div>
+      <div class="metric-delta">Base: ${fmt_date(meta.base_date)}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">% PU Par</div>
+      <div class="metric-val ${p.pu_par_v1 < 70 ? "red" : p.pu_par_v1 < 85 ? "orange" : "green"}">${p.pu_par_v1 != null ? p.pu_par_v1.toFixed(2)+"%" : "—"}</div>
+      <div class="metric-delta">Δ: ${p.delta_pu_par != null ? (p.delta_pu_par>0?"+":"")+p.delta_pu_par.toFixed(2) : "—"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">PD Implícita</div>
+      <div class="metric-val ${pdCls}">${pdPct != null ? pdPct.toFixed(1)+"%" : "—"}</div>
+      <div class="pd-bar"><div class="pd-bar-fill ${pdPct>30?"pd-high":pdPct>15?"pd-mid":""}" style="width:${Math.min(100,pdPct||0)}%"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Bid/Ask Spread</div>
+      <div class="metric-val ${p.bid_ask_bps > 200 ? "red" : p.bid_ask_bps > 100 ? "orange" : ""}">${p.bid_ask_bps != null ? p.bid_ask_bps.toFixed(0)+" bps" : "—"}</div>
+      <div class="metric-delta">${p.bid_ask_bps > 200 ? "⚠ Ilíquido" : p.bid_ask_bps > 100 ? "Moderado" : "Líquido"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Desvio Padrão</div>
+      <div class="metric-val ${p.desvio_padrao > 1 ? "red" : p.desvio_padrao > 0.5 ? "orange" : ""}">${p.desvio_padrao != null ? p.desvio_padrao.toFixed(3) : "—"}</div>
+      <div class="metric-delta">${p.desvio_padrao > 1 ? "⚠ Crise preç." : p.desvio_padrao > 0.5 ? "Divergência" : "Consenso"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Nível de Risco</div>
+      <div class="stress-badge ${STRESS_CLASSES[p.stress_level]}" style="font-size:15px;padding:5px 12px">
+        <span class="stress-dot s${p.stress_level}"></span>${STRESS_LABELS[p.stress_level]}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Duration (du)</div>
+      <div class="metric-val">${p.duration != null ? p.duration.toFixed(0) : "—"}</div>
+      <div class="metric-delta">dias úteis</div>
+    </div>
+  `;
+
+  // Charts
+  const hist = p.history || [];
+  const labels = hist.map(h => fmt_date(h.data));
+  const taxas = hist.map(h => h.taxa_indicativa != null ? +h.taxa_indicativa.toFixed(4) : null);
+  const pus = hist.map(h => h.pu_par);
+  const bids = hist.map(h => h.bid_ask_bps);
+  const desvs = hist.map(h => h.desvio_padrao);
+
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { mode: "index", intersect: false } },
+    scales: {
+      x: { grid: { display:false }, ticks: { font:{size:11} } },
+      y: { grid: { color:"#EEF2FA" }, ticks: { font:{size:11} } }
+    }
+  };
+
+  const ptStyle = { pointRadius: 5, pointHoverRadius: 7, tension: 0.3, borderWidth: 2 };
+
+  modalCharts.taxa = new Chart(document.getElementById("modal-chart-taxa"), {
+    type: "line",
+    data: { labels, datasets: [{ ...ptStyle,
+      data: taxas, borderColor:"#0057B7", backgroundColor:"rgba(0,87,183,.08)",
+      fill: true, label:"Taxa (%)"
+    }]},
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, tooltip:{ callbacks:{ label: c => `${c.parsed.y != null ? c.parsed.y.toFixed(4)+"%" : "—"}` } } } }
+  });
+
+  modalCharts.pu = new Chart(document.getElementById("modal-chart-pu"), {
+    type: "line",
+    data: { labels, datasets: [{ ...ptStyle,
+      data: pus, borderColor:"#1A8744", backgroundColor:"rgba(26,135,68,.08)",
+      fill: true, label:"% PU Par"
+    }]},
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, tooltip:{ callbacks:{ label: c => c.parsed.y != null ? `${c.parsed.y.toFixed(2)}%` : "—" } } } }
+  });
+
+  modalCharts.bidask = new Chart(document.getElementById("modal-chart-bidask"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label:"Bid/Ask bps", data:bids, backgroundColor:"rgba(0,87,183,.7)", borderRadius:4 },
+        { label:"Desvio Padrão (×100)", data:desvs.map(d => d != null ? +(d*100).toFixed(2) : null), backgroundColor:"rgba(214,48,37,.5)", borderRadius:4 }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      plugins: { legend: { display:true, position:"bottom", labels:{ font:{size:11} } }, tooltip:{ mode:"index", intersect:false } }
+    }
+  });
+
+  // Details
+  document.getElementById("modal-details").innerHTML = `
+    <div class="detail-item"><label>Indexador</label><span>${p.indexador}</span></div>
+    <div class="detail-item"><label>Índice / Correção</label><span>${p.indice_correcao || "—"}</span></div>
+    <div class="detail-item"><label>Vencimento</label><span>${p.vencimento || "—"}</span></div>
+    <div class="detail-item"><label>Setor</label><span>${p.setor || "—"}</span></div>
+    <div class="detail-item"><label>PU</label><span>${p.pu != null ? "R$ "+p.pu.toFixed(4) : "—"}</span></div>
+    <div class="detail-item"><label>Taxa Compra</label><span>${p.taxa_compra != null ? p.taxa_compra.toFixed(4)+"%" : "—"}</span></div>
+    <div class="detail-item"><label>Taxa Venda</label><span>${p.taxa_venda != null ? p.taxa_venda.toFixed(4)+"%" : "—"}</span></div>
+    <div class="detail-item"><label>Intervalo Min</label><span>${p.intervalo_min != null ? p.intervalo_min.toFixed(4)+"%" : "—"}</span></div>
+    <div class="detail-item"><label>Intervalo Máx</label><span>${p.intervalo_max != null ? p.intervalo_max.toFixed(4)+"%" : "—"}</span></div>
+    <div class="detail-item"><label>% Reune</label><span>${p.pct_reune != null ? p.pct_reune.toFixed(2)+"%" : "—"}</span></div>
+    <div class="detail-item"><label>Evento (*)</label><span>${p.has_star ? "Sim" : "Não"}</span></div>
+    <div class="detail-item"><label>Evento (**)</label><span style="color:${p.has_double_star?"var(--red)":"inherit"}">${p.has_double_star ? "⚠ SIM" : "Não"}</span></div>
+    <div class="detail-item"><label>Sem Cotação</label><span style="color:${p.sem_cotacao?"var(--red)":"inherit"}">${p.sem_cotacao ? "⚠ SIM" : "Não"}</span></div>
+    <div class="detail-item"><label>Data Base</label><span>${fmt_date(meta.base_date)}</span></div>
+    <div class="detail-item"><label>Data Atual</label><span>${fmt_date(meta.curr_date)}</span></div>
+  `;
+
+  document.getElementById("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+  document.querySelectorAll("tr.selected-row").forEach(r => r.classList.remove("selected-row"));
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function fmt_date(d) {
+  if (!d) return "—";
+  const parts = d.split("-");
+  if (parts.length !== 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+const MONTHS_SHORT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function fmt_date_short(d) {
+  if (!d) return "—";
+  const parts = d.split("-");
+  if (parts.length !== 3) return d;
+  return `${parseInt(parts[2])}/${MONTHS_SHORT[parseInt(parts[1])-1]}`;
+}
+
+function escHtml(s) {
+  if (!s) return "";
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  const mid = Math.floor(s.length/2);
+  return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+
+// ═══════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════
+init();
+</script>
+</body>
+</html>

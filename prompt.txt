@@ -1,0 +1,452 @@
+# Briefing Técnico — Plataforma de Análise de Debêntures Distressed
+## Para desenvolvimento
+
+---
+
+## 1. Contexto de negócio
+
+O usuário opera em **compra de títulos de crédito privado** de empresas em pré-recuperação
+judicial (pré-RJ), em RJ ativa, ou em situações de stress de crédito. O objetivo central
+é identificar **abertura de spread de mercado** — o sinal de que o mercado está precificando
+deterioração de crédito num emissor — com antecedência suficiente para tomar decisão de
+compra ou monitoramento.
+
+Hoje o fluxo é manual: o analista recebe o BTG Pactual Debentures Weekly (xlsx) e arquivos
+diários do Mercado Secundário de Debêntures (MSD) da ANBIMA, e faz comparações ad hoc.
+O objetivo é transformar isso num sistema automatizado, escalável e com série histórica.
+
+---
+
+## 2. Fontes de dados mapeadas
+
+### 2.1 ANBIMA — Mercado Secundário de Debêntures (MSD)
+- **O quê:** Preços indicativos diários de debêntures brasileiras, publicados por pool
+  de dealers (BTG, XP, Itaú, BB-BI etc.)
+- **Cobertura:** ~1.250–1.300 papéis por dia
+- **Formato:** Excel (.xlsx) com 6 abas por indexador: `DI_SPREAD`, `IPCA_SPREAD`,
+  `PREFIXADO`, `DI_PERCENTUAL`, `IGP-M`, `VENCIDOS_ANTECIPADAMENTE`
+- **Header:** linha 8 de cada aba. Data de referência na linha 4
+- **Campos por papel:** Código (6 chars), Nome, Repac./Venc., Índice/Correção,
+  Taxa de Compra, Taxa de Venda, Taxa Indicativa, Desvio Padrão, Intervalo Min/Máx,
+  PU, % PU Par, Duration (dias úteis), % Reune, Referência NTN-B
+- **Acesso:** Gratuito, download manual no portal ANBIMA. Histórico diário disponível.
+- **Frequência:** 1 arquivo por dia útil
+- **URL base:** `anbima.com.br` → Preços e Índices → Mercado Secundário de Debêntures
+
+### 2.2 BTG Pactual Debentures Weekly
+- **O quê:** Relatório semanal de research de crédito do BTG com ~600 debêntures cobertas
+- **Formato:** Excel (.xlsx) com ~18 abas
+- **Abas relevantes para o sistema:**
+  - `Big table DI+` — tabela de debêntures CDI+: código, emissor, emissão, vencimento,
+    estoque (R$mm), duration, taxa emissão, taxa secundário
+  - `Big table Deb incent` — mesma estrutura para debêntures incentivadas IPCA+,
+    acrescida de "Spread over B (bps)"
+  - `Big table IPCA+` — debêntures IPCA+ não-incentivadas
+  - `TopBottom DI` — ranking de maiores aberturas e fechamentos de spread em 1 e 4
+    semanas (CDI+): código, emissor, Δspread bps, taxa atual
+  - `TopBottom1 Deb incent` — mesmo ranking para incentivadas
+  - `TopBottom IPCA+` — mesmo para IPCA+
+  - `BigChart Deb CDI - SETOR` — mapa emissor→setor para CDI+
+  - `BigChart Deb incent - SETOR` — mapa emissor→setor para incentivadas
+  - `BigChart IPCA+ - SETOR` — mapa emissor→setor para IPCA+
+- **Uso no sistema:** fonte de classificação setorial (a ANBIMA não classifica setor)
+  e validação cruzada de delta de spread
+- **Frequência:** semanal (toda quarta ou quinta-feira)
+
+### 2.3 CVM — Dados Abertos
+- **O quê:** Fatos relevantes, demonstrações financeiras trimestrais (ITR/DFP),
+  atas de assembleia, comunicados
+- **URL:** `dados.cvm.gov.br`
+- **Formato:** CSV, XBRL, XML
+- **Uso:** ligar "preço mexeu" a "por quê mexeu"; due diligence fundamental
+- **CNPJ como chave:** conectar emissor da ANBIMA ao CNPJ da CVM
+
+### 2.4 B3 — Negociação Efetiva
+- **O quê:** Tape de negócios reais fechados no sistema Reúne: data, hora, código,
+  PU negociado, quantidade, taxa, contraparte
+- **Diferença da ANBIMA:** ANBIMA = indicativo de dealers; B3 = negócio de fato
+- **URL:** `b3.com.br` → Market Data → Renda Fixa Privada → Histórico
+- **Uso:** confirmar se abertura de spread está sendo acompanhada de negociação real
+  (volume), calcular PD implícita sobre preço efetivo
+
+### 2.5 Tesouro / ANBIMA — Curva de Juros
+- **O quê:** Curva DI futuro (B3) e curva ANBIMA de juros (PRE, IPCA) para benchmark
+- **Uso:** calcular spread sobre livre de risco com consistência histórica
+- **Necessário para:** z-score normalizado, PD implícita
+
+---
+
+## 3. Campos críticos e sua interpretação para distressed
+
+### Taxa Indicativa
+Spread sobre o indexador (DI ou IPCA) consolidado pela ANBIMA.
+- Emissão típica de empresa saudável: CDI + 1,5% a 3,5%
+- Zona de atenção: CDI + 5% a 8%
+- Distressed: CDI + 10%+
+- Default implícito: CDI + 15%+
+
+### % PU Par
+PU de mercado como % do valor nominal atualizado.
+- > 105%: prêmio (mercado confia)
+- 85–105%: normal
+- 70–85%: stress inicial
+- 50–70%: distressed
+- < 50%: default esperado, recovery pricing
+
+### Spread Bid/Ask (calculado)
+`(Taxa Compra - Taxa Venda) × 100` em bps.
+- < 30 bps: líquido
+- 30–100 bps: moderado
+- > 200 bps: ilíquido, risco de saída
+
+### Desvio Padrão entre dealers
+- < 0.2: consenso de precificação
+- 0.2–0.5: divergência normal
+- > 0.5: stress emergindo
+- > 1.0: crise de precificação
+
+### Marcadores no nome
+- `(*)`: cláusula especial ou evento a monitorar
+- `(**)`: evento grave (possível default, vencimento antecipado)
+- Taxa = `--` com PU existente: transação isolada, sem mercado formador
+
+---
+
+## 4. Métricas calculadas (o que já foi implementado)
+
+```
+delta_taxa_bps  = (taxa_indicativa_atual - taxa_indicativa_base) × 100
+                  + positivo = spread abriu (pior)
+                  - negativo = spread fechou (melhor)
+
+delta_pu_par    = pu_par_atual - pu_par_base
+                  negativo = papel desvalorizou
+
+bid_ask_bps     = (taxa_compra - taxa_venda) × 100
+                  proxy de liquidez e custo de saída
+
+delta_desvio    = desvio_padrao_atual - desvio_padrao_base
+                  positivo = dealers começando a discordar (sinal precoce)
+
+z_score_spread  = (spread_hoje - média_histórica) / desvio_histórico
+                  > 2.0 = spread anormalmente alto vs histórico do próprio papel
+                  (requer série histórica de ≥ 30 dias)
+
+pd_implicita    = 1 - exp(-(spread - recovery_rate) / (1 - recovery_rate))
+                  probabilidade de default implícita do mercado
+                  recovery_rate típico BR distressed ≈ 0.25–0.35
+```
+
+---
+
+## 5. O que já foi construído (prova de conceito)
+
+### 5.1 Pipeline Python (ad hoc, funcional)
+- Leitura de N arquivos MSD ANBIMA (`.xlsx`) com `pandas` + `openpyxl`
+- Consolidação das 6 abas em DataFrame único
+- Merge entre 2 datas com cálculo de todos os deltas
+- Extração de setor do BTG Weekly (BigCharts por setor)
+- Geração de JSON consolidado com ~1.258 papéis
+
+### 5.2 Dashboard HTML interativo
+- HTML standalone com dados embutidos (~640KB)
+- Stack: HTML/CSS puro + Chart.js 4.4 via CDN
+- Identidade visual BTG Pactual (paleta, tipografia Barlow + JetBrains Mono)
+- Funcionalidades:
+  - 6 KPI cards dinâmicos
+  - 6 filtros combinados (indexador, setor, faixa de delta, faixa de PU Par,
+    eventos especiais, busca livre)
+  - 4 tabs de visualização rápida (Todos, Top Aberturas, Distressed, Eventos)
+  - 3 gráficos Chart.js que reagem a filtros (top aberturas, distribuição PU,
+    delta por setor)
+  - Tabela paginada (50/página) com ordenação por qualquer coluna
+  - Delta pills coloridos, barras de PU Par, badges de indexador
+
+### 5.3 Skill Claude (`.skill`)
+- Skill instalável com SKILL.md + 5 arquivos de referência
+- Captura todo o pipeline para uso recorrente
+
+**Limitações do que foi feito:**
+- Apenas 2 datas comparadas (sem série histórica)
+- Pipeline manual (não automatizado)
+- Sem banco de dados
+- Sem z-score (requer histórico)
+- Sem API da CVM
+- Classificação setorial incompleta (75% dos papéis = "Outros")
+
+---
+
+## 6. Arquitetura proposta para o sistema robusto
+
+### 6.1 Visão geral
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        INGESTÃO                             │
+│  ANBIMA MSD (diário)  │  BTG Weekly (semanal)  │  CVM       │
+└──────────┬──────────────────────┬─────────────────────┬─────┘
+           │                      │                     │
+           ▼                      ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    BANCO DE DADOS                            │
+│  prices (série histórica)  │  issuers  │  events (CVM)      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    CAMADA ANALÍTICA                          │
+│  delta_taxa  │  z_score  │  pd_implicita  │  peer_spread    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       OUTPUTS                               │
+│  Dashboard web  │  Watchlist alerts  │  API REST           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 Stack tecnológica sugerida
+
+| Camada | Tecnologia | Justificativa |
+|---|---|---|
+| Banco de dados | **PostgreSQL** (ou DuckDB para local) | Time-series de preços, queries analíticas rápidas |
+| Ingestão | **Python** (pandas, openpyxl, httpx) | Já validado no pipeline |
+| Orquestração | **Prefect** ou **Airflow** | Schedule diário de download + processamento |
+| Backend API | **FastAPI** | Leve, tipado, async |
+| Frontend | **React + Recharts** | Substituir Chart.js por algo mais dinâmico |
+| Alertas | **Email/Telegram bot** | Notificação quando papel entra em watchlist |
+| Deploy | **Docker Compose** | Portabilidade, fácil de subir local ou cloud |
+
+### 6.3 Schema do banco de dados
+
+```sql
+-- Papéis cadastrados
+CREATE TABLE debentures (
+  codigo          VARCHAR(6) PRIMARY KEY,
+  nome            TEXT,
+  emissor_cnpj    VARCHAR(14),
+  indexador       VARCHAR(20),   -- DI_SPREAD, IPCA_SPREAD, PREFIXADO, DI_PERCENTUAL
+  indice_correcao TEXT,          -- "DI + 1,6%", "IPCA + 7,4%"
+  data_emissao    DATE,
+  data_vencimento DATE,
+  estoque_mm      NUMERIC,       -- estoque em R$ milhões (do BTG Weekly)
+  setor           VARCHAR(50),
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Série histórica de preços (uma linha por papel por dia)
+CREATE TABLE prices (
+  id              BIGSERIAL PRIMARY KEY,
+  codigo          VARCHAR(6) REFERENCES debentures(codigo),
+  data_ref        DATE NOT NULL,
+  taxa_compra     NUMERIC,
+  taxa_venda      NUMERIC,
+  taxa_indicativa NUMERIC,
+  desvio_padrao   NUMERIC,
+  intervalo_min   NUMERIC,
+  intervalo_max   NUMERIC,
+  pu              NUMERIC,
+  pu_par_pct      NUMERIC,
+  duration_du     NUMERIC,       -- duration em dias úteis
+  pct_reune       NUMERIC,
+  has_star        BOOLEAN,       -- marcador (*)
+  has_double_star BOOLEAN,       -- marcador (**)
+  sem_cotacao     BOOLEAN,       -- taxa = '--'
+  created_at      TIMESTAMP DEFAULT NOW(),
+  UNIQUE(codigo, data_ref)
+);
+CREATE INDEX idx_prices_data ON prices(data_ref);
+CREATE INDEX idx_prices_codigo ON prices(codigo);
+
+-- Métricas calculadas (cache analítico)
+CREATE TABLE metrics (
+  codigo          VARCHAR(6),
+  data_ref        DATE,
+  -- Deltas vs dia anterior
+  delta_taxa_1d   NUMERIC,       -- bps
+  delta_pu_par_1d NUMERIC,       -- pp
+  bid_ask_bps     NUMERIC,
+  delta_desvio_1d NUMERIC,
+  -- Janelas de comparação
+  delta_taxa_5d   NUMERIC,       -- 1 semana (~5 pregões)
+  delta_taxa_21d  NUMERIC,       -- 1 mês (~21 pregões)
+  -- Z-score (requer histórico)
+  zscore_taxa_30d NUMERIC,
+  zscore_taxa_90d NUMERIC,
+  -- PD implícita
+  pd_implicita    NUMERIC,
+  -- Peer spread
+  peer_median_30d NUMERIC,       -- mediana do setor nos últimos 30d
+  spread_vs_peer  NUMERIC,       -- taxa_indicativa - peer_median
+  PRIMARY KEY (codigo, data_ref)
+);
+
+-- Eventos CVM
+CREATE TABLE cvm_events (
+  id              BIGSERIAL PRIMARY KEY,
+  emissor_cnpj    VARCHAR(14),
+  data_evento     DATE,
+  tipo_evento     VARCHAR(50),   -- FATO_RELEVANTE, ITR, DFP, ATA, etc.
+  descricao       TEXT,
+  url_doc         TEXT,
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Watchlist do usuário
+CREATE TABLE watchlist (
+  codigo          VARCHAR(6),
+  added_at        TIMESTAMP DEFAULT NOW(),
+  motivo          TEXT,
+  alvo_entrada    NUMERIC,       -- PU alvo para compra
+  tese            TEXT,
+  status          VARCHAR(20) DEFAULT 'monitoring'  -- monitoring, bought, passed
+);
+
+-- Log de ingestões
+CREATE TABLE ingestion_log (
+  id              BIGSERIAL PRIMARY KEY,
+  fonte           VARCHAR(20),   -- ANBIMA, BTG_WEEKLY, CVM
+  data_ref        DATE,
+  arquivo         TEXT,
+  papeis_lidos    INTEGER,
+  papeis_novos    INTEGER,
+  status          VARCHAR(20),
+  erro            TEXT,
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 6.4 Módulos de código
+
+```
+src/
+├── ingestion/
+│   ├── anbima_msd.py         — leitura diária do Excel MSD, upsert no prices
+│   ├── btg_weekly.py         — extração de setor das BigCharts, atualiza debentures
+│   ├── cvm_events.py         — scraping/API CVM, popula cvm_events
+│   └── scheduler.py          — Prefect flows com schedule
+│
+├── analytics/
+│   ├── deltas.py             — calcula delta 1d/5d/21d para todos os papéis
+│   ├── zscore.py             — z-score de spread por papel com janela configurável
+│   ├── pd_model.py           — PD implícita via fórmula de credit spread
+│   ├── peer_analysis.py      — curva mediana por setor, spread vs peers
+│   └── stress_detector.py    — regras: marca papéis que entram em watchlist automática
+│
+├── api/
+│   ├── main.py               — FastAPI app
+│   ├── routes/
+│   │   ├── prices.py         — GET /prices/{codigo}?from=&to=
+│   │   ├── metrics.py        — GET /metrics/top-abertura?janela=5d&setor=
+│   │   ├── watchlist.py      — CRUD watchlist
+│   │   └── alerts.py         — GET /alerts/today
+│   └── schemas.py            — Pydantic models
+│
+├── dashboard/
+│   ├── build.py              — gera o HTML standalone (atual) ou serve SPA
+│   └── components/           — templates de componentes React (futuro)
+│
+├── alerts/
+│   ├── rules.py              — regras de alerta configuráveis
+│   └── notifiers.py          — email, Telegram, webhook
+│
+└── config.py                 — settings, conexão DB, credenciais
+```
+
+### 6.5 Regras de alerta automático (stress detector)
+
+Qualquer papel que atenda **2 ou mais** dos critérios abaixo entra na watchlist
+automática com prioridade alta:
+
+```python
+STRESS_RULES = [
+    ("abertura_semanal",  lambda r: r.delta_taxa_5d  > 100),   # >100bps em 1 semana
+    ("abertura_mensal",   lambda r: r.delta_taxa_21d > 200),   # >200bps em 1 mês
+    ("zscore_alto",       lambda r: r.zscore_taxa_30d > 2.5),  # anômalo vs próprio histórico
+    ("pu_distressed",     lambda r: r.pu_par_pct < 75),        # <75% do par
+    ("sem_cotacao",       lambda r: r.sem_cotacao == True),    # dealers param de cotar
+    ("desvio_alto",       lambda r: r.desvio_padrao > 1.0),    # dealers discordando
+    ("bid_ask_largo",     lambda r: r.bid_ask_bps > 300),      # iliquidez severa
+    ("double_star",       lambda r: r.has_double_star == True),# evento grave ANBIMA
+    ("spread_vs_peer",    lambda r: r.spread_vs_peer > 300),   # >300bps acima do setor
+]
+```
+
+---
+
+## 7. Sequência de desenvolvimento recomendada
+
+### Fase 1 — Fundação de dados (Semana 1–2)
+1. Criar schema PostgreSQL (ou DuckDB local para começar)
+2. Script de ingestão do arquivo MSD diário → `prices`
+3. Script de backfill: baixar histórico dos últimos 6 meses do portal ANBIMA
+4. Extrator de setor do BTG Weekly → `debentures`
+5. Job de cálculo de métricas básicas (deltas 1d/5d/21d) → `metrics`
+
+### Fase 2 — Camada analítica (Semana 3–4)
+6. Z-score de spread por papel (janelas 30d e 90d)
+7. PD implícita
+8. Peer spread (mediana por setor)
+9. Stress detector com regras configuráveis
+10. Watchlist CRUD com tese e alvo de entrada
+
+### Fase 3 — Interface (Semana 5–6)
+11. FastAPI com rotas de prices, metrics, watchlist, alerts
+12. Dashboard React com série temporal por papel (gráfico de spread no tempo)
+13. Alertas por email/Telegram quando papel entra em stress
+
+### Fase 4 — Enriquecimento (Semana 7–8)
+14. Ingestão de fatos relevantes CVM (ligar ao dashboard)
+15. Anotações manuais por papel (campo tese, histórico de decisões)
+16. Export de watchlist para Excel
+17. Comparativo com semanas do BTG Weekly anteriores
+
+---
+
+## 8. Decisões de design importantes
+
+**Por que embutir dados no HTML vs API:**
+O dashboard atual é standalone (sem backend). Para escalar, separar frontend (React)
+de backend (FastAPI). O standalone é bom para distribuir por email; o SPA é melhor
+para uso diário com histórico.
+
+**Por que DuckDB antes de PostgreSQL:**
+Para uso solo sem DevOps, DuckDB roda in-process, sem servidor, arquivo local. Migrar
+para PostgreSQL só se precisar de multi-usuário ou acesso remoto. O schema é idêntico.
+
+**Classificação setorial:**
+A ANBIMA não classifica setor. O BTG Weekly cobre ~600 papéis. Os outros ~650 ficam
+como "Outros". Para completar: (a) usar dicionário de prefixos (já implementado),
+(b) cruzar CNPJ com Receita Federal para CNAE e mapear CNAE → setor, ou (c) usar
+o relatório de outras casas (XP, Itaú, Bradesco) para ampliar cobertura.
+
+**Histórico vs streaming:**
+O MVP funciona acumulando arquivos diários. Não há necessidade de streaming — o
+mercado de debêntures não é HFT. Um job que roda às 18h após o fechamento da ANBIMA
+é suficiente para o caso de uso de distressed.
+
+**Recovery rate para PD implícita:**
+Usar 25–35% como default para debêntures quirografárias brasileiras em RJ (baseado
+em histórico de recuperações judiciais BR). Tornar configurável por papel na watchlist.
+
+---
+
+## 9. Perguntas em aberto para resolver no desenvolvimento
+
+1. **Download automatizado da ANBIMA:** o portal permite scraping ou existe API formal?
+   Confirmar URL de download e se há autenticação. Pode ser necessário login leve.
+
+2. **B3 negociação efetiva:** qual o formato exato dos arquivos de renda fixa privada?
+   Confirmar se inclui debêntures ou só CRI/CRA.
+
+3. **CVM API:** o portal `dados.cvm.gov.br` tem endpoint REST para fatos relevantes?
+   Ou é só download de CSV bulk?
+
+4. **Série histórica ANBIMA:** o portal libera histórico de até quanto tempo atrás?
+   12 meses? 5 anos? Isso determina a qualidade do z-score inicial.
+
+5. **Múltiplos usuários:** o sistema é para uso solo ou para uma equipe? Define se
+   PostgreSQL + autenticação é necessário desde o início.
+
+6. **Frequência de alertas:** diário (fim do dia) é suficiente ou intraday é relevante?
+   Debêntures raramente têm liquidez intraday, então diário deve ser ok.
