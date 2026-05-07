@@ -932,7 +932,6 @@ function applyFilters() {
   const puF = document.getElementById("filter-pu").value;
 
   filtered = allPapers.filter(p => {
-    if (!p.taxa_emissao || p.taxa_emissao <= 0) return false;
     if (search && !p.codigo.toLowerCase().includes(search) && !p.nome.toLowerCase().includes(search))
       return false;
     if (idxF && p.indexador !== idxF) return false;
