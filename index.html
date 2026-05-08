@@ -735,8 +735,7 @@
           <tr>
             <th data-col="codigo">Código</th>
             <th data-col="nome" style="min-width:180px">Emissor</th>
-            <th data-col="indexador">Indexador</th>
-            <th data-col="taxa_emissao">Taxa Emissão</th>
+            <th data-col="indice_correcao">Índice/Correção</th>
             <th data-col="estoque_mm">Estoque (R$mm)</th>
             <th data-col="setor">Setor</th>
             <th data-col="vencimento">Vencimento</th>
@@ -820,11 +819,12 @@
           <tr>
             <th data-col-cc="tipo">Tipo</th>
             <th data-col-cc="codigo">Código</th>
-            <th data-col-cc="risco_credito" style="min-width:180px">Emissor</th>
-            <th data-col-cc="indexador">Indexador</th>
+            <th data-col-cc="risco_credito" style="min-width:160px">Devedor</th>
+            <th data-col-cc="emissor_sec" style="min-width:180px">Emissor</th>
+            <th data-col-cc="indice_correcao">Índice/Correção</th>
             <th data-col-cc="vencimento">Vencimento</th>
             <th data-col-cc="taxa_v0" id="cc-th-taxa-v0">Taxa —</th>
-            <th data-col-cc="taxa_v1" id="cc-th-taxa-v1">Taxa —</th>
+            <th data-col-cc="taxa_v1" id="cc-th-taxa-v1">Taxa Indicativa</th>
             <th data-col-cc="delta_taxa_bps">Δ Spread (bps)</th>
             <th data-col-cc="pu_par_v0" id="cc-th-pu-v0">%PU Par —</th>
             <th data-col-cc="pu_par_v1" id="cc-th-pu-v1">%PU Par —</th>
@@ -1111,7 +1111,7 @@ function renderTable() {
   const tbody = document.getElementById("table-body");
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr class="no-data-row"><td colspan="12">Nenhum papel encontrado com os filtros selecionados.</td></tr>';
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="14">Nenhum papel encontrado com os filtros selecionados.</td></tr>';
     renderPagination(0, 0);
     return;
   }
@@ -1151,8 +1151,7 @@ function rowHtml(p) {
   return `<tr data-codigo="${p.codigo}">
     <td><span class="codigo-badge">${p.codigo}</span></td>
     <td class="nome-cell" title="${escHtml(p.nome)}">${starHtml} ${escHtml(p.nome)}</td>
-    <td><span class="idx-badge idx-${p.indexador}">${IDX_SHORT[p.indexador]||p.indexador}</span></td>
-    <td class="mono" style="color:var(--btg-muted)">${p.taxa_emissao != null ? p.taxa_emissao.toFixed(2)+"%" : "—"}</td>
+    <td><span class="idx-badge idx-${p.indexador}">${escHtml(p.indice_correcao||"—")}</span></td>
     <td class="mono">${p.estoque_mm != null ? "R$"+p.estoque_mm.toLocaleString("pt-BR",{maximumFractionDigits:0}) : "—"}</td>
     <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${escHtml(p.setor)}">${escHtml(p.setor)}</td>
     <td class="mono" style="color:var(--btg-muted);font-size:12px">${p.vencimento || "—"}</td>
@@ -1435,7 +1434,7 @@ function buildCriCraUI() {
   const bl = fmt_date_short(metaCC.base_date);
   const cl = fmt_date_short(metaCC.curr_date);
   document.getElementById("cc-th-taxa-v0").textContent = `Taxa ${bl}`;
-  document.getElementById("cc-th-taxa-v1").textContent = `Taxa ${cl}`;
+  document.getElementById("cc-th-taxa-v1").textContent = `Taxa Indicativa (${cl})`;
   document.getElementById("cc-th-pu-v0").textContent   = `%PU Par ${bl}`;
   document.getElementById("cc-th-pu-v1").textContent   = `%PU Par ${cl}`;
 
@@ -1531,7 +1530,7 @@ function applyFiltersCC() {
   const puF    = document.getElementById("cc-filter-pu").value;
 
   filteredCC = allCriCra.filter(p => {
-    if (search && !p.codigo.toLowerCase().includes(search) && !(p.risco_credito||"").toLowerCase().includes(search)) return false;
+    if (search && !p.codigo.toLowerCase().includes(search) && !(p.risco_credito||"").toLowerCase().includes(search) && !(p.emissor_sec||"").toLowerCase().includes(search)) return false;
     if (tipoF && p.tipo !== tipoF) return false;
     if (idxF  && p.indexador !== idxF) return false;
     if (deltaF) {
@@ -1571,7 +1570,7 @@ function renderTableCC() {
   const tbody = document.getElementById("cc-table-body");
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr class="no-data-row"><td colspan="13">Nenhum papel encontrado.</td></tr>';
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="15">Nenhum papel encontrado.</td></tr>';
     renderPaginationCC(0, 0);
     return;
   }
@@ -1611,7 +1610,8 @@ function rowHtmlCC(p) {
     <td><span class="tipo-badge ${tipoCls}">${p.tipo}</span></td>
     <td><span class="codigo-badge">${p.codigo}</span></td>
     <td class="nome-cell" title="${escHtml(p.risco_credito)}">${escHtml(p.risco_credito||"—")}</td>
-    <td><span class="idx-badge" style="background:${idxC.bg};color:${idxC.color}">${p.indexador}</span></td>
+    <td class="nome-cell" style="font-size:12px;color:var(--btg-muted)" title="${escHtml(p.emissor_sec)}">${escHtml(p.emissor_sec||"—")}</td>
+    <td><span class="idx-badge" style="background:${idxC.bg};color:${idxC.color}">${escHtml(p.indice_correcao||"—")}</span></td>
     <td class="mono" style="color:var(--btg-muted);font-size:12px">${p.vencimento||"—"}</td>
     <td class="mono">${p.taxa_v0 != null ? p.taxa_v0.toFixed(4)+"%" : "—"}</td>
     <td class="mono" style="font-weight:600">${p.taxa_v1 != null ? p.taxa_v1.toFixed(4)+"%" : "—"}</td>
