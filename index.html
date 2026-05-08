@@ -597,6 +597,41 @@
     color: var(--btg-muted);
     font-size: 14px;
   }
+
+  /* ── Main section navigation ── */
+  .main-nav {
+    display: flex;
+    gap: 2px;
+    padding: 10px 20px 0;
+    background: var(--btg-dark);
+  }
+  .nav-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.55);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 22px;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.18s;
+    letter-spacing: 0.3px;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
+  .nav-btn.active { background: var(--btg-bg); color: var(--btg-dark); }
+
+  /* ── CRI/CRA tipo badges ── */
+  .tipo-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+  .tipo-cri { background: #DCF0FF; color: #005099; }
+  .tipo-cra { background: #D8F5E1; color: #1A6636; }
 </style>
 </head>
 <body>
@@ -618,8 +653,13 @@
 </div>
 
 <div id="app">
+<div class="main-nav">
+  <button class="nav-btn active" data-section="deb" onclick="switchSection('deb')">Debêntures</button>
+  <button class="nav-btn" data-section="cri" onclick="switchSection('cri')">CRI / CRA</button>
+</div>
 <main>
 
+<div id="deb-section">
   <!-- KPI Cards -->
   <div class="kpi-grid" id="kpi-grid"></div>
 
@@ -716,6 +756,90 @@
 
     <div class="pagination" id="pagination"></div>
   </div>
+</div><!-- /deb-section -->
+
+<!-- ══════════════════════ CRI / CRA SECTION ══════════════════════ -->
+<div id="cri-section" style="display:none">
+  <div class="kpi-grid" id="cc-kpi-grid"></div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">CRI / CRA</span>
+      <span class="section-count" id="cc-tbl-count">0</span>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <div class="tab-bar" id="cc-tab-bar">
+          <button class="tab-btn active" data-tab="all">Todos</button>
+          <button class="tab-btn" data-tab="top">Top Aberturas</button>
+          <button class="tab-btn" data-tab="distressed">Distressed</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Busca</span>
+        <input type="text" id="cc-search" placeholder="Código ou emissor..." />
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Tipo</span>
+        <select id="cc-filter-tipo">
+          <option value="">Todos</option>
+          <option value="CRI">CRI</option>
+          <option value="CRA">CRA</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Indexador</span>
+        <select id="cc-filter-indexador"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Delta spread</span>
+        <select id="cc-filter-delta">
+          <option value="">Qualquer</option>
+          <option value="200">≥ 200 bps</option>
+          <option value="100">≥ 100 bps</option>
+          <option value="50">≥ 50 bps</option>
+          <option value="-50">≤ −50 bps</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">% PU Par</span>
+        <select id="cc-filter-pu">
+          <option value="">Qualquer</option>
+          <option value="distressed">&lt; 70% (Distressed)</option>
+          <option value="stress">70–85% (Stress)</option>
+          <option value="normal">85–105% (Normal)</option>
+        </select>
+      </div>
+      <button class="btn-reset" id="cc-btn-reset">Limpar filtros</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="cc-table">
+        <thead>
+          <tr>
+            <th data-col-cc="tipo">Tipo</th>
+            <th data-col-cc="codigo">Código</th>
+            <th data-col-cc="risco_credito" style="min-width:180px">Emissor</th>
+            <th data-col-cc="indexador">Indexador</th>
+            <th data-col-cc="vencimento">Vencimento</th>
+            <th data-col-cc="taxa_v0" id="cc-th-taxa-v0">Taxa —</th>
+            <th data-col-cc="taxa_v1" id="cc-th-taxa-v1">Taxa —</th>
+            <th data-col-cc="delta_taxa_bps">Δ Spread (bps)</th>
+            <th data-col-cc="pu_par_v0" id="cc-th-pu-v0">%PU Par —</th>
+            <th data-col-cc="pu_par_v1" id="cc-th-pu-v1">%PU Par —</th>
+            <th data-col-cc="delta_pu_par">Δ PU Par</th>
+            <th data-col-cc="bid_ask_bps">Bid/Ask (bps)</th>
+            <th data-col-cc="desvio_padrao">Desvio</th>
+          </tr>
+        </thead>
+        <tbody id="cc-table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="cc-pagination"></div>
+  </div>
+</div><!-- /cri-section -->
 
 </main>
 </div>
@@ -1268,9 +1392,381 @@ function median(arr) {
 }
 
 // ═══════════════════════════════════════════
+// SECTION SWITCHER
+// ═══════════════════════════════════════════
+function switchSection(section) {
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
+  document.getElementById("deb-section").style.display = section === "deb" ? "" : "none";
+  document.getElementById("cri-section").style.display = section === "cri" ? "" : "none";
+}
+
+// ═══════════════════════════════════════════
+// CRI/CRA STATE
+// ═══════════════════════════════════════════
+let allCriCra = [], metaCC = {}, filteredCC = [];
+let currentPageCC = 1, sortColCC = "delta_taxa_bps", sortDirCC = -1, activeTabCC = "all";
+
+const CC_IDX_COLORS = {
+  "DI+":      { bg: "#E3F0FF", color: "#004EA8" },
+  "DI%":      { bg: "#EAF4FF", color: "#1166BB" },
+  "IPCA+":    { bg: "#FFF3E0", color: "#C46200" },
+  "PREFIXADO":{ bg: "#EDE7F6", color: "#5C35B1" },
+  "IGP-M":    { bg: "#FCE4EC", color: "#B71C1C" },
+  "Outros":   { bg: "#F0F0F0", color: "#666" },
+};
+
+// ═══════════════════════════════════════════
+// CRI/CRA INIT
+// ═══════════════════════════════════════════
+async function initCriCra() {
+  try {
+    const resp = await fetch("/api/cri-cra");
+    const data = await resp.json();
+    allCriCra = data.papers;
+    metaCC    = data.meta;
+    buildCriCraUI();
+  } catch(e) { console.error("CRI/CRA load error", e); }
+}
+
+function buildCriCraUI() {
+  buildCriCraKPIs();
+  buildCriCraFilters();
+
+  const bl = fmt_date_short(metaCC.base_date);
+  const cl = fmt_date_short(metaCC.curr_date);
+  document.getElementById("cc-th-taxa-v0").textContent = `Taxa ${bl}`;
+  document.getElementById("cc-th-taxa-v1").textContent = `Taxa ${cl}`;
+  document.getElementById("cc-th-pu-v0").textContent   = `%PU Par ${bl}`;
+  document.getElementById("cc-th-pu-v1").textContent   = `%PU Par ${cl}`;
+
+  applyFiltersCC();
+
+  document.getElementById("cc-search").addEventListener("input", () => { currentPageCC=1; applyFiltersCC(); });
+  document.getElementById("cc-filter-tipo").addEventListener("change", () => { currentPageCC=1; applyFiltersCC(); });
+  document.getElementById("cc-filter-indexador").addEventListener("change", () => { currentPageCC=1; applyFiltersCC(); });
+  document.getElementById("cc-filter-delta").addEventListener("change", () => { currentPageCC=1; applyFiltersCC(); });
+  document.getElementById("cc-filter-pu").addEventListener("change", () => { currentPageCC=1; applyFiltersCC(); });
+  document.getElementById("cc-btn-reset").addEventListener("click", resetFiltersCC);
+
+  document.querySelectorAll("#cc-tab-bar .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#cc-tab-bar .tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeTabCC = btn.dataset.tab;
+      currentPageCC = 1;
+      applyFiltersCC();
+    });
+  });
+
+  document.querySelectorAll("#cc-table thead th[data-col-cc]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.colCc;
+      if (sortColCC === col) sortDirCC *= -1;
+      else { sortColCC = col; sortDirCC = -1; }
+      document.querySelectorAll("#cc-table thead th").forEach(t => t.classList.remove("sort-asc","sort-desc"));
+      th.classList.add(sortDirCC === 1 ? "sort-asc" : "sort-desc");
+      renderTableCC();
+    });
+  });
+
+  const initTh = document.querySelector(`#cc-table th[data-col-cc="${sortColCC}"]`);
+  if (initTh) initTh.classList.add("sort-desc");
+}
+
+// ═══════════════════════════════════════════
+// CRI/CRA KPIs
+// ═══════════════════════════════════════════
+function buildCriCraKPIs() {
+  const withDelta = allCriCra.filter(p => p.delta_taxa_bps != null);
+  const avgDelta  = withDelta.length ? median(withDelta.map(p => p.delta_taxa_bps)) : 0;
+  const puDist    = allCriCra.filter(p => p.pu_par_v1 != null && p.pu_par_v1 < 70).length;
+  const noQuote   = allCriCra.filter(p => p.sem_cotacao).length;
+  const cri = allCriCra.filter(p => p.tipo === "CRI").length;
+  const cra = allCriCra.filter(p => p.tipo === "CRA").length;
+
+  const kpis = [
+    { label: "Total CRI/CRA", value: metaCC.total,        sub: "monitorados",    cls: "blue"   },
+    { label: "CRI",           value: cri,                  sub: "imobiliários",   cls: "blue"   },
+    { label: "CRA",           value: cra,                  sub: "agronegócio",    cls: "green"  },
+    { label: "Distressed",    value: metaCC.distressed,    sub: "stress level 3", cls: "red"    },
+    { label: "Em Stress",     value: metaCC.stress,        sub: "stress level 2", cls: "orange" },
+    { label: "PU Par < 70%",  value: puDist,               sub: "recovery pricing",cls:"red"   },
+    { label: "Δ Mediana",     value: (avgDelta>=0?"+":"")+Math.round(avgDelta), sub:"bps todos", cls: avgDelta>20?"orange":"green" },
+  ];
+
+  document.getElementById("cc-kpi-grid").innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════
+// CRI/CRA FILTERS
+// ═══════════════════════════════════════════
+function buildCriCraFilters() {
+  const sel = document.getElementById("cc-filter-indexador");
+  metaCC.indexadores.forEach(idx => {
+    const opt = document.createElement("option");
+    opt.value = idx; opt.textContent = idx;
+    sel.appendChild(opt);
+  });
+}
+
+function resetFiltersCC() {
+  ["cc-search","cc-filter-tipo","cc-filter-indexador","cc-filter-delta","cc-filter-pu"]
+    .forEach(id => { const el = document.getElementById(id); if (el.tagName==="INPUT") el.value=""; else el.value=""; });
+  document.querySelectorAll("#cc-tab-bar .tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector('#cc-tab-bar [data-tab="all"]').classList.add("active");
+  activeTabCC = "all"; currentPageCC = 1;
+  applyFiltersCC();
+}
+
+function applyFiltersCC() {
+  const search = document.getElementById("cc-search").value.toLowerCase();
+  const tipoF  = document.getElementById("cc-filter-tipo").value;
+  const idxF   = document.getElementById("cc-filter-indexador").value;
+  const deltaF = document.getElementById("cc-filter-delta").value;
+  const puF    = document.getElementById("cc-filter-pu").value;
+
+  filteredCC = allCriCra.filter(p => {
+    if (search && !p.codigo.toLowerCase().includes(search) && !(p.risco_credito||"").toLowerCase().includes(search)) return false;
+    if (tipoF && p.tipo !== tipoF) return false;
+    if (idxF  && p.indexador !== idxF) return false;
+    if (deltaF) {
+      const d = parseInt(deltaF);
+      if (d >= 0 && (p.delta_taxa_bps == null || p.delta_taxa_bps < d)) return false;
+      if (d < 0  && (p.delta_taxa_bps == null || p.delta_taxa_bps > d)) return false;
+    }
+    if (puF === "distressed" && (p.pu_par_v1 == null || p.pu_par_v1 >= 70)) return false;
+    if (puF === "stress"     && (p.pu_par_v1 == null || p.pu_par_v1 < 70 || p.pu_par_v1 >= 85)) return false;
+    if (puF === "normal"     && (p.pu_par_v1 == null || p.pu_par_v1 < 85 || p.pu_par_v1 > 105)) return false;
+    if (activeTabCC === "top"        && (p.delta_taxa_bps == null || p.delta_taxa_bps < 50)) return false;
+    if (activeTabCC === "distressed" && p.stress_level < 2) return false;
+    return true;
+  });
+
+  document.getElementById("cc-tbl-count").textContent = filteredCC.length;
+  renderTableCC();
+}
+
+// ═══════════════════════════════════════════
+// CRI/CRA TABLE
+// ═══════════════════════════════════════════
+function renderTableCC() {
+  filteredCC.sort((a, b) => {
+    let av = a[sortColCC], bv = b[sortColCC];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; if (bv == null) return -1;
+    if (typeof av === "string") return av.localeCompare(bv) * sortDirCC;
+    return (av - bv) * sortDirCC;
+  });
+
+  const total = filteredCC.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  currentPageCC = Math.min(currentPageCC, totalPages);
+  const start = (currentPageCC - 1) * PAGE_SIZE;
+  const page  = filteredCC.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById("cc-table-body");
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="13">Nenhum papel encontrado.</td></tr>';
+    renderPaginationCC(0, 0);
+    return;
+  }
+
+  tbody.innerHTML = page.map(p => rowHtmlCC(p)).join("");
+
+  tbody.querySelectorAll("tr[data-cc-codigo]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const cod = tr.dataset.ccCodigo;
+      tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected-row"));
+      tr.classList.add("selected-row");
+      openModalCC(cod);
+    });
+  });
+
+  renderPaginationCC(total, totalPages);
+}
+
+function rowHtmlCC(p) {
+  const dCls   = p.delta_taxa_bps > 0 ? "delta-up" : p.delta_taxa_bps < 0 ? "delta-down" : "delta-neutral";
+  const dSign  = p.delta_taxa_bps > 0 ? "+" : "";
+  const dLabel = p.delta_taxa_bps != null ? `${dSign}${p.delta_taxa_bps}` : "—";
+
+  const pu1   = p.pu_par_v1 != null ? p.pu_par_v1.toFixed(2) : "—";
+  let puCls   = "ok";
+  if (p.pu_par_v1 != null && p.pu_par_v1 < 70) puCls = "stress";
+  else if (p.pu_par_v1 != null && p.pu_par_v1 < 85) puCls = "warn";
+  const puFill = p.pu_par_v1 != null ? Math.min(100, p.pu_par_v1) : 0;
+
+  const dpuSign  = p.delta_pu_par > 0 ? "+" : "";
+  const dpuColor = p.delta_pu_par < 0 ? "var(--red)" : p.delta_pu_par > 0 ? "var(--green)" : "inherit";
+
+  const tipoCls = p.tipo === "CRA" ? "tipo-cra" : "tipo-cri";
+  const idxC    = CC_IDX_COLORS[p.indexador] || CC_IDX_COLORS["Outros"];
+
+  return `<tr data-cc-codigo="${p.codigo}">
+    <td><span class="tipo-badge ${tipoCls}">${p.tipo}</span></td>
+    <td><span class="codigo-badge">${p.codigo}</span></td>
+    <td class="nome-cell" title="${escHtml(p.risco_credito)}">${escHtml(p.risco_credito||"—")}</td>
+    <td><span class="idx-badge" style="background:${idxC.bg};color:${idxC.color}">${p.indexador}</span></td>
+    <td class="mono" style="color:var(--btg-muted);font-size:12px">${p.vencimento||"—"}</td>
+    <td class="mono">${p.taxa_v0 != null ? p.taxa_v0.toFixed(4)+"%" : "—"}</td>
+    <td class="mono" style="font-weight:600">${p.taxa_v1 != null ? p.taxa_v1.toFixed(4)+"%" : "—"}</td>
+    <td><span class="delta-pill ${dCls}">${dLabel} bps</span></td>
+    <td class="mono" style="color:var(--btg-muted)">${p.pu_par_v0 != null ? p.pu_par_v0.toFixed(2)+"%" : "—"}</td>
+    <td>
+      <div class="pu-bar-wrap">
+        <div class="pu-bar"><div class="pu-bar-fill ${puCls}" style="width:${puFill}%"></div></div>
+        <span class="pu-val">${pu1}%</span>
+      </div>
+    </td>
+    <td class="mono" style="color:${dpuColor}">${p.delta_pu_par != null ? dpuSign+p.delta_pu_par.toFixed(2) : "—"}</td>
+    <td class="mono">${p.bid_ask_bps != null ? p.bid_ask_bps.toFixed(0) : "—"}</td>
+    <td class="mono">${p.desvio_padrao != null ? p.desvio_padrao.toFixed(3) : "—"}</td>
+  </tr>`;
+}
+
+// ═══════════════════════════════════════════
+// CRI/CRA PAGINATION
+// ═══════════════════════════════════════════
+function renderPaginationCC(total, totalPages) {
+  const pag   = document.getElementById("cc-pagination");
+  const start = (currentPageCC - 1) * PAGE_SIZE + 1;
+  const end   = Math.min(currentPageCC * PAGE_SIZE, total);
+
+  let html = `<button class="page-btn" ${currentPageCC===1?"disabled":""} onclick="goPageCC(${currentPageCC-1})">‹ Anterior</button>`;
+  pageRange(currentPageCC, totalPages, 7).forEach(pg => {
+    if (pg === "…") html += `<span style="padding:5px 4px;color:var(--btg-muted)">…</span>`;
+    else html += `<button class="page-btn ${pg===currentPageCC?"active":""}" onclick="goPageCC(${pg})">${pg}</button>`;
+  });
+  html += `<button class="page-btn" ${currentPageCC===totalPages?"disabled":""} onclick="goPageCC(${currentPageCC+1})">Próxima ›</button>`;
+
+  pag.innerHTML = `
+    <span class="page-info">${total===0?"0 resultados":`${start}–${end} de ${total}`}</span>
+    <div class="page-btns">${html}</div>`;
+}
+function goPageCC(p) { currentPageCC = p; renderTableCC(); }
+
+// ═══════════════════════════════════════════
+// CRI/CRA MODAL
+// ═══════════════════════════════════════════
+function openModalCC(codigo) {
+  const p = allCriCra.find(x => x.codigo === codigo);
+  if (!p) return;
+
+  Object.values(modalCharts).forEach(c => c.destroy());
+  modalCharts = {};
+
+  document.getElementById("modal-codigo").textContent = p.codigo;
+  document.getElementById("modal-nome").textContent =
+    (p.risco_credito || p.codigo) + (p.vencimento ? ` · Venc. ${p.vencimento}` : "");
+
+  const delt = p.delta_taxa_bps;
+  const dCls = delt > 0 ? "red" : delt < 0 ? "green" : "";
+  const dSgn = delt > 0 ? "+" : "";
+
+  document.getElementById("modal-metrics").innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Taxa Indicativa</div>
+      <div class="metric-val">${p.taxa_indicativa != null ? p.taxa_indicativa.toFixed(2)+"%" : "—"}</div>
+      <div class="metric-delta">${p.indice_correcao||"—"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Δ Spread (vs base)</div>
+      <div class="metric-val ${dCls}">${delt != null ? dSgn+delt+" bps" : "—"}</div>
+      <div class="metric-delta">Base: ${fmt_date(metaCC.base_date)}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">% PU Par</div>
+      <div class="metric-val ${p.pu_par_v1!=null&&p.pu_par_v1<70?"red":p.pu_par_v1!=null&&p.pu_par_v1<85?"orange":"green"}">${p.pu_par_v1!=null?p.pu_par_v1.toFixed(2)+"%":"—"}</div>
+      <div class="metric-delta">Δ: ${p.delta_pu_par!=null?(p.delta_pu_par>0?"+":"")+p.delta_pu_par.toFixed(2):"—"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Tipo</div>
+      <div class="metric-val">${p.tipo}</div>
+      <div class="metric-delta">${escHtml(p.emissor_sec||"—")}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Bid/Ask</div>
+      <div class="metric-val">${p.bid_ask_bps!=null?p.bid_ask_bps.toFixed(0)+" bps":"—"}</div>
+      <div class="metric-delta">${p.bid_ask_bps>300?"Ilíquido":p.bid_ask_bps>100?"Baixa liq.":"Líquido"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Desvio Padrão</div>
+      <div class="metric-val">${p.desvio_padrao!=null?p.desvio_padrao.toFixed(3):"—"}</div>
+      <div class="metric-delta">${p.desvio_padrao>1?"Alto":p.desvio_padrao>0.5?"Moderado":"Baixo"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Stress</div>
+      <div class="metric-val"><span class="${STRESS_CLASSES[p.stress_level]}">${STRESS_LABELS[p.stress_level]}</span></div>
+      <div class="metric-delta">${p.indexador||"—"}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Duration</div>
+      <div class="metric-val">${p.duration!=null?Math.round(p.duration):"—"}</div>
+      <div class="metric-delta">d.u.</div>
+    </div>`;
+
+  const hist   = p.history || [];
+  const labels = hist.map(h => fmt_date_short(h.data));
+  const cOpts  = { responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:"rgba(0,0,0,.05)"},ticks:{color:"#6B7FA8"}},
+            y:{grid:{color:"rgba(0,0,0,.05)"},ticks:{color:"#6B7FA8"}}} };
+
+  modalCharts.taxa = new Chart(
+    document.getElementById("modal-chart-taxa").getContext("2d"), {
+      type:"line", options:cOpts,
+      data:{ labels, datasets:[{ data:hist.map(h=>h.taxa_indicativa),
+        borderColor:"#0057B7", backgroundColor:"rgba(0,87,183,.1)", tension:0.3, pointRadius:5 }] }
+    });
+
+  modalCharts.pu = new Chart(
+    document.getElementById("modal-chart-pu").getContext("2d"), {
+      type:"line", options:cOpts,
+      data:{ labels, datasets:[{ data:hist.map(h=>h.pu_par),
+        borderColor:"#1A8744", backgroundColor:"rgba(26,135,68,.1)", tension:0.3, pointRadius:5 }] }
+    });
+
+  modalCharts.bidask = new Chart(
+    document.getElementById("modal-chart-bidask").getContext("2d"), {
+      type:"bar",
+      data:{ labels, datasets:[
+        { label:"Bid/Ask bps", data:hist.map(h=>h.bid_ask_bps||0), backgroundColor:"rgba(0,87,183,.7)" },
+        { label:"Desvio ×100", data:hist.map(h=>h.desvio_padrao!=null?h.desvio_padrao*100:0), backgroundColor:"rgba(230,124,0,.7)" }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:true,labels:{color:"#6B7FA8"}}},
+        scales:{x:{grid:{color:"rgba(0,0,0,.05)"},ticks:{color:"#6B7FA8"}},
+                y:{grid:{color:"rgba(0,0,0,.05)"},ticks:{color:"#6B7FA8"}}} }
+    });
+
+  document.getElementById("modal-details").innerHTML = `
+    <div class="detail-item"><span class="detail-key">Emissor Sec.</span><span class="detail-val">${escHtml(p.emissor_sec||"—")}</span></div>
+    <div class="detail-item"><span class="detail-key">Série / Emissão</span><span class="detail-val">${escHtml(p.serie||"—")} / ${escHtml(p.emissao||"—")}</span></div>
+    <div class="detail-item"><span class="detail-key">Indexador</span><span class="detail-val">${escHtml(p.indice_correcao||"—")}</span></div>
+    <div class="detail-item"><span class="detail-key">Vencimento</span><span class="detail-val">${p.vencimento||"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">PU</span><span class="detail-val mono">${p.pu!=null?p.pu.toFixed(4):"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">Taxa Compra</span><span class="detail-val mono">${p.taxa_compra!=null?p.taxa_compra.toFixed(4)+"%":"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">Taxa Venda</span><span class="detail-val mono">${p.taxa_venda!=null?p.taxa_venda.toFixed(4)+"%":"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">Ref. NTNB</span><span class="detail-val">${p.ref_ntnb||"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">% Reune</span><span class="detail-val">${p.pct_reune||"—"}</span></div>
+    <div class="detail-item"><span class="detail-key">Sem Cotação</span><span class="detail-val">${p.sem_cotacao?"Sim":"Não"}</span></div>
+    <div class="detail-item"><span class="detail-key">Data Base</span><span class="detail-val">${fmt_date(metaCC.base_date)}</span></div>
+    <div class="detail-item"><span class="detail-key">Data Atual</span><span class="detail-val">${fmt_date(metaCC.curr_date)}</span></div>`;
+
+  document.getElementById("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+// ═══════════════════════════════════════════
 // START
 // ═══════════════════════════════════════════
 init();
+initCriCra();
 </script>
 </body>
 </html>
