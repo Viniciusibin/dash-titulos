@@ -1,5 +1,7 @@
 import os
+import re
 import csv
+import glob
 import math
 import json
 from datetime import datetime
@@ -9,13 +11,117 @@ from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__, static_folder=".")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR       = os.path.dirname(os.path.abspath(__file__))
+DEBENTURES_DIR = os.path.join(BASE_DIR, "debentures")
+CRI_CRA_DIR    = os.path.join(BASE_DIR, "cri_cra")
 
-ANBIMA_BASE_FILE = os.path.join(BASE_DIR, "anbima v0.xlsx")
-ANBIMA_CURR_FILE = os.path.join(BASE_DIR, "d26mai07.xls")
-BTG_FILE         = os.path.join(BASE_DIR, "119452.xlsx")
-CRI_CRA_BASE_FILE = os.path.join(BASE_DIR, "taxas_CRI_CRA (3).csv")
-CRI_CRA_CURR_FILE = os.path.join(BASE_DIR, "taxas_CRI_CRA (1).csv")
+_PT_MON = {
+    "jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5,  "jun": 6,
+    "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12,
+}
+
+
+def _file_date_key(filepath):
+    """Extrai chave de ordenação (ano, mês, dia) do nome do arquivo.
+    Suporta: debenture-DD-MM, cri_cra-DD-MM, d{YY}{mon}{DD}, taxas_CRI_CRA_{YYYYMMDD}.
+    Usa mtime como fallback."""
+    name = os.path.splitext(os.path.basename(filepath))[0].lower()
+    now = datetime.now()
+
+    m = re.match(r"(?:debenture|cri[_-]cra)-(\d{2})-(\d{2})(?:-(\d{2,4}))?", name)
+    if m:
+        dd, mm = int(m.group(1)), int(m.group(2))
+        yy_raw = m.group(3)
+        yy = int(yy_raw) + (2000 if yy_raw and len(yy_raw) == 2 else 0) if yy_raw else now.year
+        return (yy, mm, dd)
+
+    m = re.match(r"d(\d{2})([a-z]{3})(\d{2})", name)
+    if m:
+        return (2000 + int(m.group(1)), _PT_MON.get(m.group(2), 0), int(m.group(3)))
+
+    m = re.search(r"(\d{8})", name)
+    if m:
+        d = m.group(1)
+        return (int(d[:4]), int(d[4:6]), int(d[6:8]))
+
+    dt = datetime.fromtimestamp(os.path.getmtime(filepath))
+    return (dt.year, dt.month, dt.day)
+
+
+def _sorted_files(*patterns):
+    """Retorna arquivos que correspondem a qualquer padrão, ordenados pela data no nome."""
+    files, seen = [], set()
+    for pat in patterns:
+        for f in glob.glob(pat):
+            key = os.path.abspath(f)
+            if key not in seen:
+                files.append(key)
+                seen.add(key)
+    return sorted(files, key=_file_date_key)
+
+
+def _find_latest_debentures():
+    """Retorna (base_file, curr_file) — mais recente e penúltimo."""
+    files = _sorted_files(
+        os.path.join(DEBENTURES_DIR, "debenture-*.xls"),
+        os.path.join(DEBENTURES_DIR, "debenture-*.xls?"),
+        os.path.join(DEBENTURES_DIR, "d*.xls"),
+        os.path.join(DEBENTURES_DIR, "d*.xls?"),
+        os.path.join(BASE_DIR, "d*.xls"),
+        os.path.join(BASE_DIR, "d*.xls?"),
+    )
+    if len(files) >= 2:
+        return files[-2], files[-1]
+    if files:
+        for base in [
+            os.path.join(DEBENTURES_DIR, "anbima v0.xlsx"),
+            os.path.join(BASE_DIR, "anbima v0.xlsx"),
+        ]:
+            if os.path.exists(base):
+                return base, files[-1]
+        return files[-1], files[-1]
+    return (
+        os.path.join(BASE_DIR, "anbima v0.xlsx"),
+        os.path.join(BASE_DIR, "d26mai07.xls"),
+    )
+
+
+def _find_latest_cri_cra():
+    """Retorna (base_file, curr_file) — mais recente e penúltimo."""
+    files = _sorted_files(
+        os.path.join(CRI_CRA_DIR, "cri_cra-*.csv"),
+        os.path.join(CRI_CRA_DIR, "taxas_CRI_CRA*.csv"),
+        os.path.join(BASE_DIR, "taxas_CRI_CRA*.csv"),
+    )
+    if len(files) >= 2:
+        return files[-2], files[-1]
+    if files:
+        return files[-1], files[-1]
+    return (
+        os.path.join(BASE_DIR, "taxas_CRI_CRA (3).csv"),
+        os.path.join(BASE_DIR, "taxas_CRI_CRA (1).csv"),
+    )
+
+
+def _find_btg_file():
+    for candidate in [
+        os.path.join(DEBENTURES_DIR, "119452.xlsx"),
+        os.path.join(BASE_DIR, "119452.xlsx"),
+    ]:
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.join(BASE_DIR, "119452.xlsx")
+
+
+ANBIMA_BASE_FILE, ANBIMA_CURR_FILE = _find_latest_debentures()
+CRI_CRA_BASE_FILE, CRI_CRA_CURR_FILE = _find_latest_cri_cra()
+BTG_FILE = _find_btg_file()
+
+print(f"[config] deb_base : {os.path.basename(ANBIMA_BASE_FILE)}")
+print(f"[config] deb_curr : {os.path.basename(ANBIMA_CURR_FILE)}")
+print(f"[config] cri_base : {os.path.basename(CRI_CRA_BASE_FILE)}")
+print(f"[config] cri_curr : {os.path.basename(CRI_CRA_CURR_FILE)}")
+print(f"[config] btg      : {os.path.basename(BTG_FILE)}")
 
 ANBIMA_SHEETS = ["DI_SPREAD", "IPCA_SPREAD", "PREFIXADO", "DI_PERCENTUAL", "IGP-M"]
 
@@ -630,6 +736,29 @@ def api_cri_cra_paper(codigo):
     if not paper:
         return jsonify({"error": "Not found"}), 404
     return jsonify(paper)
+
+
+@app.route("/api/reload")
+def api_reload():
+    """Recarrega os arquivos mais recentes e limpa o cache."""
+    global ANBIMA_BASE_FILE, ANBIMA_CURR_FILE, CRI_CRA_BASE_FILE, CRI_CRA_CURR_FILE
+    global BTG_FILE, _cache, _cri_cra_cache
+    ANBIMA_BASE_FILE, ANBIMA_CURR_FILE = _find_latest_debentures()
+    CRI_CRA_BASE_FILE, CRI_CRA_CURR_FILE = _find_latest_cri_cra()
+    BTG_FILE = _find_btg_file()
+    _cache = None
+    _cri_cra_cache = None
+    print(f"[reload] deb_base : {os.path.basename(ANBIMA_BASE_FILE)}")
+    print(f"[reload] deb_curr : {os.path.basename(ANBIMA_CURR_FILE)}")
+    print(f"[reload] cri_base : {os.path.basename(CRI_CRA_BASE_FILE)}")
+    print(f"[reload] cri_curr : {os.path.basename(CRI_CRA_CURR_FILE)}")
+    return jsonify({
+        "status": "ok",
+        "deb_base": os.path.basename(ANBIMA_BASE_FILE),
+        "deb_curr": os.path.basename(ANBIMA_CURR_FILE),
+        "cri_base": os.path.basename(CRI_CRA_BASE_FILE),
+        "cri_curr": os.path.basename(CRI_CRA_CURR_FILE),
+    })
 
 
 if __name__ == "__main__":

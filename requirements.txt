@@ -1,3 +1,5 @@
 flask
 openpyxl
 xlrd
+requests
+beautifulsoup4
